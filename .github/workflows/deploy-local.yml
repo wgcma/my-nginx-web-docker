@@ -1,0 +1,47 @@
+name: Deploy to Local Machine
+
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
+  workflow_dispatch: # Allows manual triggering from GitHub UI
+
+jobs:
+  deploy:
+    # Specify your self-hosted runner.
+    # Use 'self-hosted' if you didn't add custom labels.
+    # If you added labels (e.g., 'local-dev'), use:
+    # runs-on: [self-hosted, local-dev]
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4 # Checkout your code
+
+      - name: Build Docker Image
+        run: |
+          # Assuming your Dockerfile is in the root of your repository
+          # You might need to adjust the image name/tag based on your setup
+          docker build -t my-nginx-web-docker:latest .
+
+      - name: Stop and Remove Existing Container (if any)
+        run: |
+          # Stop and remove the existing container if it's running
+          # This prevents conflicts when starting a new one
+          docker stop my-nginx-web-container || true
+          docker rm my-nginx-web-container || true
+        continue-on-error: true # Allow this step to fail if container doesn't exist
+
+      - name: Run New Docker Container
+        run: |
+          # Run the new container, mapping port 80 to 8080 on your host
+          # Adjust ports as needed.
+          # The `--name` is important for easy management (stop/remove)
+          # The `-d` runs the container in detached mode (background)
+          docker run -d --name my-nginx-web-container -p 8080:80 my-nginx-web-docker:latest
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment of my-nginx-web-docker complete! Check http://localhost:8080 (or your host IP) in your browser."
+          docker ps -a | grep my-nginx-web-container # Show container status
+
